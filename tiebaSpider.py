@@ -23,6 +23,8 @@ class Tool:
 	replaceBR = re.compile('<br><br>|<br>')
 	#将其余的标签提出
 	removeExtraTag = re.compile('<.*?>')
+	#去除空格
+	replaceSpace = re.compile('&nbsp')
 	
 	def replace(self,content):
 		content = re.sub(self.removeImg,'',content)
@@ -32,6 +34,7 @@ class Tool:
 		content = re.sub(self.replacePara,'\n',content)
 		content = re.sub(self.replaceBR,'\n',content)
 		content = re.sub(self.removeExtraTag,'',content)
+		content = re.sub(self.replaceSpace,'',content)
 
 		#移除多余的前后内容
 		return content.strip()
@@ -51,7 +54,7 @@ class  BaiDuSpider:
 			#拼接url
 			url = self.baseUrl + self.isSeeLZ + '&pn=' + str(pageNum)
 
-			print url
+			# print url
 			#构建request
 			request = urllib2.Request(url)
 			#获取response
@@ -98,12 +101,13 @@ class  BaiDuSpider:
 	def getContent(self,pageNum):
 		content = self.getPageContent(pageNum)
 		# print content
-		pattern = re.compile('<div class="post_bubble_middle".*?>.*?</div>',re.S)
+		pattern = re.compile('<div id="post_content_(.*?)>(.*?)</div>',re.S)
 		items = re.findall(pattern,content)
 		floor = 1;
 		contents = []
 		for item in items:
-			itemContent = str(floor) + u'楼------------------\n'+'\n'+self.tool.replace(str(item)) +'\n\n'
+			# print item
+			itemContent = str(floor) + u'楼------------------\n'+'\n'+self.tool.replace(str(item[1])) +'\n\n'
 			contents.append(itemContent.encode('utf-8'))
 		
 			floor += 1
@@ -113,21 +117,28 @@ class  BaiDuSpider:
 #写入文件
 	def setTitle(self,title):
 		if title is not None:
-			self.file = codecs.open(title + '.txt','w+')
+			self.file = open(title + '.txt','w+')
 			self.file.write(title + '\n\n')
 		else:
-			self.file = codecs.open('百度贴吧' + '.txt','w+')
+			self.file = open('百度贴吧' + '.txt','w+')
 			self.file.write('百度贴吧' + '\n\n')
 
-	def  writeDataToFile(self,contents):
+	def  writeDataToFile(self,contents,pageNum):
+		self.file.write('第 ' + str(pageNum) + '页\n')
 		for item in contents:
-			self.file.write('aaa')
+			self.file.write(item)
 
 
 #开始
 	def start(self):
-		pageNum = self.getPageNum()
+
+		print '开始录入帖子...'
+
 		title = self.getTitle()
+		print '帖子标题是 ' + title
+
+		pageNum = self.getPageNum()
+		print '共' + pageNum + '页'
 
 		if pageNum == None:
 			print 'URL已经失效，请重试'
@@ -136,19 +147,30 @@ class  BaiDuSpider:
 		self.setTitle(title)
 
 		try:
-			print '该帖子一共'+str(pageNum) + '页'
+			print '该帖子一共'+str(pageNum) + ' 页'
 			for i in range(1,int(pageNum) + 1):
-				print '正在写入第' + str(i) + '页'
+				print '正在写入第' + str(i) + '页...'
 				pageContent = self.getContent(i)
-				self.writeDataToFile(pageContent)
+				self.writeDataToFile(pageContent,int(i))
 		except IOError, e:
 			print '写入异常，原因是：' + e.message	
 		finally:
 			print '写入成功'
 
-baseUrl = 'http://tieba.baidu.com/p/3953365553'
 
-spider = BaiDuSpider(baseUrl,1)
+print '请输入帖子编号'
+
+
+baseUrl = 'http://tieba.baidu.com/p/' + str(raw_input(u'http://tieba.baidu.com/p/'))
+
+isSeeLZ = raw_input(u'是否只看楼主，是输入1，否输入0')
+
+if str(isSeeLZ) != '1' or str(isSeeLZ) != '0':
+	print '输入不合法！'
+	isSeeLZ = raw_input(u'是否只看楼主，是输入1，否输入0')
+
+
+spider = BaiDuSpider(baseUrl,isSeeLZ)
 
 #写在这里是为了告诉自己  不要试图去print一个没有返回值的函数  会莫名其妙多个None的。。。
 
