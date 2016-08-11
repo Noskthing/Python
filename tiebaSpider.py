@@ -3,6 +3,10 @@
 import urllib
 import urllib2
 import re
+import sys
+import codecs
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 class Tool:
 	"""docstring for Tool"""
@@ -16,7 +20,7 @@ class Tool:
 	#讲段落开头替换为\n加两个空格
 	replacePara = re.compile('<p.*?>')
 	#讲换行符或者双换行符替换为\n
-	replaceBR = re.compile('<br><br>|<br')
+	replaceBR = re.compile('<br><br>|<br>')
 	#将其余的标签提出
 	removeExtraTag = re.compile('<.*?>')
 	
@@ -32,7 +36,7 @@ class Tool:
 		#移除多余的前后内容
 		return content.strip()
 		
-#b百度贴吧爬虫
+#测试
 class  BaiDuSpider:
 
 	"""docstring for  BaiDuSpider"""
@@ -40,13 +44,14 @@ class  BaiDuSpider:
 		self.baseUrl = baseUrl
 		self.isSeeLZ = '?see_lz=' + str(isSeeLZ)
 		self.tool = Tool()
+		self.file = None
 
 	def  getPageContent(self,pageNum):
 		try:
 			#拼接url
 			url = self.baseUrl + self.isSeeLZ + '&pn=' + str(pageNum)
 
-			# print url
+			print url
 			#构建request
 			request = urllib2.Request(url)
 			#获取response
@@ -54,7 +59,7 @@ class  BaiDuSpider:
 
 			# if pageNum == 1:
 			# 	self.content = response.read()
-
+			# print response.read()
 			return response.read()
 
 		except urllib2.URLError, e:
@@ -93,15 +98,59 @@ class  BaiDuSpider:
 	def getContent(self,pageNum):
 		content = self.getPageContent(pageNum)
 		# print content
-		pattern = re.compile('<div id="post_content_.*?>(.*?)</div>',re.S)
+		pattern = re.compile('<div class="post_bubble_middle".*?>.*?</div>',re.S)
 		items = re.findall(pattern,content)
+		floor = 1;
+		contents = []
 		for item in items:
-			print self.tool.replace(str(item))
+			itemContent = str(floor) + u'楼------------------\n'+'\n'+self.tool.replace(str(item)) +'\n\n'
+			contents.append(itemContent.encode('utf-8'))
+		
+			floor += 1
+		return contents
 		# print self.tool.replace(str(items[-1]))
 
-baseUrl = 'http://tieba.baidu.com/p/4716667665'
+#写入文件
+	def setTitle(self,title):
+		if title is not None:
+			self.file = codecs.open(title + '.txt','w+')
+			self.file.write(title + '\n\n')
+		else:
+			self.file = codecs.open('百度贴吧' + '.txt','w+')
+			self.file.write('百度贴吧' + '\n\n')
+
+	def  writeDataToFile(self,contents):
+		for item in contents:
+			self.file.write('aaa')
+
+
+#开始
+	def start(self):
+		pageNum = self.getPageNum()
+		title = self.getTitle()
+
+		if pageNum == None:
+			print 'URL已经失效，请重试'
+			return
+
+		self.setTitle(title)
+
+		try:
+			print '该帖子一共'+str(pageNum) + '页'
+			for i in range(1,int(pageNum) + 1):
+				print '正在写入第' + str(i) + '页'
+				pageContent = self.getContent(i)
+				self.writeDataToFile(pageContent)
+		except IOError, e:
+			print '写入异常，原因是：' + e.message	
+		finally:
+			print '写入成功'
+
+baseUrl = 'http://tieba.baidu.com/p/3953365553'
 
 spider = BaiDuSpider(baseUrl,1)
 
 #写在这里是为了告诉自己  不要试图去print一个没有返回值的函数  会莫名其妙多个None的。。。
-spider.getContent(1)
+
+# print spider.getPageNum()
+spider.start()
